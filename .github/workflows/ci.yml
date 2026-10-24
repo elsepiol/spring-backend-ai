@@ -24,3 +24,7 @@ jobs:
       - name: Build and test
         # Same command you run locally. Tests tagged "exercise" are skipped.
         run: ./mvnw -B verify
+
+      - name: Build the Docker image
+        # Proves the Dockerfile works. Not pushed anywhere yet.
+        run: docker build -t shop:ci .

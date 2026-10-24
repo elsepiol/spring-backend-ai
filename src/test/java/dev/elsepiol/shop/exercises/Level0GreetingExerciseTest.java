@@ -5,11 +5,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import dev.elsepiol.shop.product.ProductService;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
@@ -25,6 +27,11 @@ class Level0GreetingExerciseTest {
 
 	@Autowired
 	private MockMvc mockMvc;
+
+	// @WebMvcTest loads every controller. ProductController needs a ProductService,
+	// which this web-only test does not start, so we provide a stand-in. Ignore it.
+	@MockitoBean
+	private ProductService productService;
 
 	@Test
 	void greetsAValidName() throws Exception {

@@ -1,0 +1,44 @@
+REFERENCE SOLUTION for Exercise 1. Try the exercise yourself before reading this.
+It is stored as text so it is not compiled. Three files change.
+
+=== ProductRepository.java: add one method ===
+
+	Page<Product> findByNameContainingIgnoreCase(String q, Pageable pageable);
+
+(imports: org.springframework.data.domain.Page, org.springframework.data.domain.Pageable)
+Spring Data reads the method name: "findBy" + the field "Name" + "Containing"
+(SQL LIKE %q%) + "IgnoreCase" (compare lower-cased). You write no SQL.
+
+
+=== ProductService.java: add two methods ===
+
+	@Transactional
+	public void delete(long id) {
+		if (!repository.existsById(id)) {
+			throw new ProductNotFoundException(id);
+		}
+		repository.deleteById(id);
+	}
+
+	@Transactional(readOnly = true)
+	public PageResponse<ProductResponse> search(String q, Pageable pageable) {
+		return PageResponse.from(repository.findByNameContainingIgnoreCase(q, pageable).map(ProductResponse::from));
+	}
+
+
+=== ProductController.java: add two endpoints (and the imports for DeleteMapping and RequestParam) ===
+
+	@DeleteMapping("/{id}")
+	public ResponseEntity<Void> delete(@PathVariable long id) {
+		service.delete(id);
+		return ResponseEntity.noContent().build(); // 204
+	}
+
+	@GetMapping("/search")
+	public PageResponse<ProductResponse> search(@RequestParam String q,
+			@PageableDefault(size = 20, sort = "id") Pageable pageable) {
+		return service.search(q, pageable);
+	}
+
+Why "/search" does not clash with "/{id}": Spring prefers the more specific
+literal path, and "search" would not convert to a number anyway.

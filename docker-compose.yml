@@ -1,0 +1,38 @@
+# Local development: a PostgreSQL database, and optionally the app itself.
+#
+#   docker compose up -d db          # just the database (run the app from your IDE or ./mvnw spring-boot:run)
+#   docker compose up --build        # database + the app in a container
+#
+# The credentials below are for LOCAL DEVELOPMENT ONLY and match the defaults in
+# application.properties. Never reuse them anywhere real.
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: shop
+      POSTGRES_USER: shop
+      POSTGRES_PASSWORD: shop
+    ports:
+      - "5432:5432"
+    volumes:
+      - shop-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shop -d shop"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/shop
+      DB_USER: shop
+      DB_PASSWORD: shop
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  shop-db-data:

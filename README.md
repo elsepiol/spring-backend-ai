@@ -15,7 +15,7 @@ Each level has:
 | Level | Topic | Status |
 |---|---|---|
 | 0 | [Orientation](docs/learn/00-orientation.md): build tool, build agent, project layout, how Spring starts, one request end to end | Done |
-| 1 | Persistence: PostgreSQL, JPA, migrations, layers, error handling, Docker | Planned |
+| 1 | [Persistence](docs/learn/01-persistence.md): PostgreSQL, JPA, Flyway migrations, layers, error handling, Testcontainers, Docker | Built (needs Docker to run the DB tests) |
 | 2 | Security: authentication with JWT, authorization | Planned |
 | 3 | Correctness under concurrency: orders, stock, transactions, idempotency | Planned |
 | 4 | Thousands of requests per second: caching, indexes, pagination, connection pools | Planned |
@@ -29,6 +29,7 @@ Requires JDK 21. On Windows use `mvnw.cmd` instead of `./mvnw`.
 
 ```
 ./mvnw verify                  # build and run tests
+docker compose up -d db        # start PostgreSQL (Level 1 onward; needs Docker)
 ./mvnw spring-boot:run         # run the app on http://localhost:8080
 ./mvnw test -Pexercises        # run the exercise tests (they fail until you do the exercise)
 ```
