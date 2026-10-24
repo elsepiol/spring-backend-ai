@@ -23,10 +23,15 @@ jobs:
 
       - name: Build and test
         # Same command you run locally. Tests tagged "exercise" are skipped.
-        run: ./mvnw -B test -Pexercises -Dsurefire.failIfNoSpecifiedTests=false
+        run: ./mvnw -B test -Pexercises -Dtest=Level1ExerciseTest
 
 
       - name: Assert the Level 1 exercise really ran and passed
         run: |
           grep -h "Tests run:" target/surefire-reports/*Level1ExerciseTest.txt
           grep -q "Tests run: 5, Failures: 0, Errors: 0, Skipped: 0" target/surefire-reports/*Level1ExerciseTest.txt
+
+      - name: Publish failures as annotations
+        if: failure()
+        run: |
+          grep -h -E "Tests run:|FAILURE|ERROR\]|expected|Status =" target/surefire-reports/*.txt | head -15 | while read -r l; do echo "::error::${l:0:300}"; done
