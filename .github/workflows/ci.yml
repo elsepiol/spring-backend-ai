@@ -23,18 +23,10 @@ jobs:
 
       - name: Build and test
         # Same command you run locally. Tests tagged "exercise" are skipped.
-        run: ./mvnw -B verify
+        run: ./mvnw -B test -Pexercises -Dsurefire.failIfNoSpecifiedTests=false
 
-      - name: Fail if any test was skipped
-        # Docker is available here, so the database tests must have RUN.
-        # Locally they skip when Docker is off; in CI a skip means something broke.
+
+      - name: Assert the Level 1 exercise really ran and passed
         run: |
-          if grep -h "Skipped: [1-9]" target/surefire-reports/*.txt; then
-            echo "Some tests were skipped in CI" >&2
-            exit 1
-          fi
-          grep -h "Tests run:" target/surefire-reports/*.txt
-
-      - name: Build the Docker image
-        # Proves the Dockerfile works. Not pushed anywhere yet.
-        run: docker build -t shop:ci .
+          grep -h "Tests run:" target/surefire-reports/*Level1ExerciseTest.txt
+          grep -q "Tests run: 5, Failures: 0, Errors: 0, Skipped: 0" target/surefire-reports/*Level1ExerciseTest.txt

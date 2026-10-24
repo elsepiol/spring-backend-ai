@@ -48,4 +48,17 @@ public class ProductService {
 		return PageResponse.from(page.map(ProductResponse::from));
 	}
 
+	@Transactional
+	public void delete(long id) {
+		if (!repository.existsById(id)) {
+			throw new ProductNotFoundException(id);
+		}
+		repository.deleteById(id);
+	}
+
+	@Transactional(readOnly = true)
+	public PageResponse<ProductResponse> search(String q, Pageable pageable) {
+		return PageResponse.from(repository.findByNameContainingIgnoreCase(q, pageable).map(ProductResponse::from));
+	}
+
 }
