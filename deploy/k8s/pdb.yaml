@@ -1,0 +1,12 @@
+# Level 6. During voluntary disruptions (node upgrades, drains) keep at least 2 pods running.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: shop
+  labels:
+    app: shop
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: shop

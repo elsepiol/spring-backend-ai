@@ -1,0 +1,90 @@
+# Level 6. Three copies of the app, replaced one at a time on every deploy.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shop
+  labels:
+    app: shop
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: shop
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1        # start one new pod...
+      maxUnavailable: 0  # ...and only remove an old one once the new one is READY: no capacity dip
+  template:
+    metadata:
+      labels:
+        app: shop
+    spec:
+      # Longer than preStop (5 s) + Spring's graceful shutdown (20 s), so running requests finish.
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+      # Spread the copies over different nodes, so losing one machine does not take them all.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: shop
+      containers:
+        - name: shop
+          image: ghcr.io/elsepiol/spring-backend-ai:REPLACE_WITH_COMMIT_SHA # pin a version, never :latest
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: shop-config
+            - secretRef:
+                name: shop-secrets
+          resources:
+            requests:            # what the scheduler reserves for the pod
+              cpu: 500m
+              memory: 768Mi
+            limits:
+              memory: 768Mi      # the JVM sizes its heap from this (MaxRAMPercentage=75)
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp    # Tomcat needs a writable temp directory
+          # Startup: Flyway migrations and JVM warm-up can take a while; liveness waits for this.
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 2
+            failureThreshold: 60
+          # Liveness: is the process healthy? Failing it RESTARTS the pod. No database check here.
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          # Readiness: can it serve now (database reachable)? Failing it only stops traffic.
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            periodSeconds: 5
+            failureThreshold: 2
+          lifecycle:
+            preStop:
+              # Removing a pod from the Service's endpoints takes a moment to reach every node.
+              # Keep serving for 5 s first, so no request is sent to a pod that is already gone.
+              sleep:
+                seconds: 5
+      volumes:
+        - name: tmp
+          emptyDir: {}

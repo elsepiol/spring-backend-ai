@@ -19,7 +19,20 @@
 		     run them with the "exercises" profile (see below). -->
 		<test.groups></test.groups>
 		<test.excludedGroups>exercise</test.excludedGroups>
+		<spring-modulith.version>2.1.2</spring-modulith.version>
 	</properties>
+	<dependencyManagement>
+		<dependencies>
+			<!-- Spring Modulith is not managed by Spring Boot's parent, so import its own version list -->
+			<dependency>
+				<groupId>org.springframework.modulith</groupId>
+				<artifactId>spring-modulith-bom</artifactId>
+				<version>${spring-modulith.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -70,6 +83,15 @@
 			<groupId>com.github.ben-manes.caffeine</groupId>
 			<artifactId>caffeine</artifactId>
 		</dependency>
+		<!-- Level 6: tracing (OpenTelemetry through Micrometer) and metrics in Prometheus format -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-opentelemetry</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>io.micrometer</groupId>
+			<artifactId>micrometer-registry-prometheus</artifactId>
+		</dependency>
 
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -109,6 +131,22 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-security-oauth2-resource-server-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-opentelemetry-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<!-- Level 6: checks the module structure (no cycles between feature packages) -->
+		<dependency>
+			<groupId>org.springframework.modulith</groupId>
+			<artifactId>spring-modulith-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.modulith</groupId>
+			<artifactId>spring-modulith-docs</artifactId>
 			<scope>test</scope>
 		</dependency>
 		<!-- Real PostgreSQL in a throwaway Docker container for integration tests -->

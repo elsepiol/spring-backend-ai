@@ -1,6 +1,5 @@
 package dev.elsepiol.shop.security;
 
-import dev.elsepiol.shop.auth.User;
 import java.time.Clock;
 import java.time.Instant;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
@@ -29,7 +28,7 @@ public class JwtService {
 		this.clock = clock;
 	}
 
-	public IssuedToken issue(User user) {
+	public IssuedToken issue(TokenSubject who) {
 		Instant now = clock.instant();
 		Instant expiresAt = now.plus(properties.ttl());
 
@@ -37,9 +36,9 @@ public class JwtService {
 				.issuer(properties.issuer())
 				.issuedAt(now)
 				.expiresAt(expiresAt)
-				.subject(String.valueOf(user.getId())) // "sub": who this token is about
-				.claim("email", user.getEmail())
-				.claim("role", user.getRole().name())
+				.subject(who.subject()) // "sub": who this token is about (the user id)
+				.claim("email", who.email())
+				.claim("role", who.role())
 				.build();
 
 		JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();

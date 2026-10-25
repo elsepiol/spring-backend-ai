@@ -51,6 +51,44 @@ jobs:
         # Proves the Dockerfile works. Not pushed anywhere yet.
         run: docker build -t shop:ci .
 
+      - name: Smoke test the image
+        # Level 6: run the image we would deploy, against a real PostgreSQL, with the prod profile,
+        # and check it becomes READY and answers. Tests prove the code; this proves the artifact.
+        run: |
+          docker network create smoke
+          docker run -d --name smoke-db --network smoke \
+            -e POSTGRES_DB=shop -e POSTGRES_USER=shop -e POSTGRES_PASSWORD=shop postgres:17-alpine
+          until docker exec smoke-db pg_isready -U shop -d shop >/dev/null 2>&1; do sleep 1; done
+          docker run -d --name smoke-app --network smoke -p 8080:8080 \
+            -e SPRING_PROFILES_ACTIVE=prod -e DB_URL=jdbc:postgresql://smoke-db:5432/shop \
+            -e JWT_SECRET=ci-smoke-test-only-secret-ci-smoke-test-only-secret shop:ci
+          for i in $(seq 1 60); do
+            curl -sf localhost:8080/actuator/health/readiness && break
+            sleep 2
+          done
+          echo
+          curl -sf localhost:8080/actuator/health/readiness
+          curl -sf localhost:8080/api/v1/ping
+          test "$(curl -s -o /dev/null -w '%{http_code}' localhost:8080/api/v1/orders)" = 401
+          # prod logs must be one JSON object per line (stdout only; the JVM may print notes on stderr)
+          docker logs smoke-app 2>/dev/null | python3 -c "import sys, json; [json.loads(l) for l in sys.stdin if l.strip()]; print('logs are JSON')"
+
+      - name: Show the app's output if the smoke test failed
+        if: failure()
+        run: docker logs smoke-app 2>&1 | tail -100 || true
+
+  # Level 6: the Kubernetes manifests must be valid for the Kubernetes API, field by field.
+  manifests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Validate deploy/k8s with kubeconform
+        run: |
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz | tar xz kubeconform
+          ./kubeconform -strict -summary -kubernetes-version 1.33.0 deploy/k8s/
+
   # Proves every exercise fails before its solution and passes with it (see the script).
   exercises:
     runs-on: ubuntu-latest

@@ -1,0 +1,14 @@
+# Level 6. One stable address in front of all ready pods; traffic is spread over them.
+apiVersion: v1
+kind: Service
+metadata:
+  name: shop
+  labels:
+    app: shop
+spec:
+  selector:
+    app: shop
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

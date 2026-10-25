@@ -2,6 +2,7 @@ package dev.elsepiol.shop.auth;
 
 import dev.elsepiol.shop.security.IssuedToken;
 import dev.elsepiol.shop.security.JwtService;
+import dev.elsepiol.shop.security.TokenSubject;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
@@ -69,7 +70,8 @@ public class AuthService {
 			throw new InvalidCredentialsException();
 		}
 
-		IssuedToken token = jwtService.issue(user);
+		IssuedToken token = jwtService.issue(new TokenSubject(String.valueOf(user.getId()), user.getEmail(),
+				user.getRole().name()));
 		long seconds = Duration.between(clock.instant(), token.expiresAt()).getSeconds();
 		return new TokenResponse(token.value(), "Bearer", seconds);
 	}

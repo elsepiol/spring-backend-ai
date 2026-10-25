@@ -5,6 +5,8 @@ import dev.elsepiol.shop.inventory.InventoryRepository;
 import dev.elsepiol.shop.outbox.Outbox;
 import dev.elsepiol.shop.product.Product;
 import dev.elsepiol.shop.product.ProductRepository;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -38,16 +40,18 @@ public class OrderService {
 	private final InventoryRepository inventory;
 	private final Outbox outbox;
 	private final JsonMapper json;
+	private final MeterRegistry meters;
 	private final TransactionTemplate writeTx;
 	private final TransactionTemplate lookupTx;
 
 	public OrderService(CustomerOrderRepository orders, ProductRepository products, InventoryRepository inventory,
-			Outbox outbox, JsonMapper json, PlatformTransactionManager transactionManager) {
+			Outbox outbox, JsonMapper json, MeterRegistry meters, PlatformTransactionManager transactionManager) {
 		this.orders = orders;
 		this.products = products;
 		this.inventory = inventory;
 		this.outbox = outbox;
 		this.json = json;
+		this.meters = meters;
 		// We open transactions by hand here (instead of @Transactional) because place() must
 		// catch an exception AFTER its transaction has rolled back and then look again.
 		// @Transactional wraps the whole method, so the catch would run inside the doomed
@@ -59,7 +63,37 @@ public class OrderService {
 		this.lookupTx = new TransactionTemplate(transactionManager);
 	}
 
+	/**
+	 * Level 6: also counts every attempt by outcome, as the metric shop.orders{outcome=...}. A
+	 * business metric like this answers questions that request rates cannot: "are people still
+	 * able to buy?" A sudden drop in outcome=created with normal traffic is an incident even when
+	 * every HTTP request returns quickly.
+	 */
 	public PlacedOrder place(long userId, String rawKey, CreateOrderRequest request) {
+		try {
+			PlacedOrder placed = placeOnce(userId, rawKey, request);
+			count(placed.replayed() ? "replayed" : "created");
+			return placed;
+		}
+		catch (InsufficientStockException ex) {
+			count("out_of_stock");
+			throw ex;
+		}
+		catch (InvalidOrderException | IdempotencyKeyReuseException ex) {
+			count("rejected");
+			throw ex;
+		}
+	}
+
+	private void count(String outcome) {
+		Counter.builder("shop.orders")
+				.description("Order attempts by outcome")
+				.tag("outcome", outcome)
+				.register(meters) // returns the existing counter after the first call
+				.increment();
+	}
+
+	private PlacedOrder placeOnce(long userId, String rawKey, CreateOrderRequest request) {
 		String key = requireKey(rawKey);
 
 		// Merge duplicate lines and sort by product id. TreeMap iterates in ascending key order,

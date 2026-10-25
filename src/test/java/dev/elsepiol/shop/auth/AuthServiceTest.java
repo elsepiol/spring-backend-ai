@@ -90,7 +90,7 @@ class AuthServiceTest {
 	void loginReturnsATokenForTheRightPassword() {
 		User user = new User("ada@example.com", encoder.encode("correct horse battery"), Role.USER);
 		when(users.findByEmail("ada@example.com")).thenReturn(Optional.of(user));
-		when(jwtService.issue(user)).thenReturn(new IssuedToken("the.jwt.value", Instant.now().plusSeconds(900)));
+		when(jwtService.issue(any())).thenReturn(new IssuedToken("the.jwt.value", Instant.now().plusSeconds(900)));
 
 		TokenResponse response = service.login(new LoginRequest("ADA@example.com", "correct horse battery"));
 

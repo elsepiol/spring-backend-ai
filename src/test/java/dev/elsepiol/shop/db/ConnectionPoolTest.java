@@ -51,7 +51,13 @@ class ConnectionPoolTest extends PostgresIntegrationTest {
 
 			// The cache needs no connection, so this product is still served.
 			mvc.perform(get("/api/v1/products/" + id)).andExpect(status().isOk());
+
+			// Level 6: the instance reports itself NOT READY (no new traffic, please) but still ALIVE
+			// (do not restart me: a restart would not bring connections back).
+			mvc.perform(get("/actuator/health/readiness")).andExpect(status().isServiceUnavailable());
+			mvc.perform(get("/actuator/health/liveness")).andExpect(status().isOk());
 		}
+		mvc.perform(get("/actuator/health/readiness")).andExpect(status().isOk());
 
 		mvc.perform(get("/api/v1/products")).andExpect(status().isOk()); // connections back: normal again
 	}

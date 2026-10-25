@@ -1,0 +1,22 @@
+# Level 6. More pods when CPU is busy, fewer when it is not. The app is stateless (Level 0), so
+# any number of copies works; the database pool is what to watch (pods x DB_POOL_SIZE connections).
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: shop
+  labels:
+    app: shop
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: shop
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

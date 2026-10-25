@@ -3,8 +3,6 @@ package dev.elsepiol.shop.security;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import dev.elsepiol.shop.auth.Role;
-import dev.elsepiol.shop.auth.User;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -12,7 +10,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.jwt.BadJwtException;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.test.util.ReflectionTestUtils;
 
 /** Plain unit tests of token creation and validation. No Spring context, no database. */
 class JwtServiceTest {
@@ -29,10 +26,8 @@ class JwtServiceTest {
 		return new JwtService(config.jwtEncoder(props), props, Clock.systemUTC());
 	}
 
-	private User user() {
-		User u = new User("a@example.com", "hash", Role.ADMIN);
-		ReflectionTestUtils.setField(u, "id", 42L);
-		return u;
+	private TokenSubject user() {
+		return new TokenSubject("42", "a@example.com", "ADMIN");
 	}
 
 	@Test
