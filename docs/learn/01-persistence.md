@@ -148,6 +148,8 @@ You need Docker (Docker Desktop on Windows) for the commands below and for the d
 
 **Testcontainers** starts a throwaway PostgreSQL container for the tests and removes it afterwards, so tests run against the real database engine, not an in-memory imitation with different behaviour. `@ServiceConnection` wires the application to it automatically. Without Docker running, those tests are skipped (not failed). GitHub CI always has Docker, so it runs them all.
 
+**A real gotcha, worth knowing for interviews.** Spring caches application contexts between test classes that share the same configuration, and a cached context keeps its connection pool. If every test class started and stopped its own container, a class reusing a cached context would find its database gone and hang for 30 seconds per request (the pool's default timeout) before failing with "Could not open JPA EntityManager". It first passed here only because no two classes shared a configuration; it broke the moment Level 2 added one. The fix is a single container shared by the whole test run (see the comment in `PostgresIntegrationTest`).
+
 ---
 
 ## 12. Run it yourself
