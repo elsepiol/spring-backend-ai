@@ -8,7 +8,10 @@ set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
 work="$(mktemp -d)"
-trap 'rm -rf "$work"' EXIT
+# On failure keep the test reports where CI can annotate them, then clean up.
+trap 'code=$?; if [ "$code" -ne 0 ] && [ -d "$work/target/surefire-reports" ]; then rm -rf "$root/target/surefire-reports"; mkdir -p "$root/target"; cp -r "$work/target/surefire-reports" "$root/target/surefire-reports"; fi; rm -rf "$work"' EXIT
+
+fail() { echo "::error::$*"; echo "ERROR: $*" >&2; exit 1; }
 
 tar -C "$root" --exclude=./target --exclude=./.git -cf - . | tar -C "$work" -xf -
 cd "$work"
@@ -17,26 +20,26 @@ check_reports() {
   local mode="$1" count=0
   shopt -s nullglob
   for f in target/surefire-reports/*ExerciseTest.txt; do
-    local line run fail err skip
+    local line run nfail err skip
     line="$(grep -m1 "Tests run:" "$f")"
     run="$(sed -E 's/.*Tests run: ([0-9]+),.*/\1/' <<<"$line")"
-    fail="$(sed -E 's/.*Failures: ([0-9]+),.*/\1/' <<<"$line")"
+    nfail="$(sed -E 's/.*Failures: ([0-9]+),.*/\1/' <<<"$line")"
     err="$(sed -E 's/.*Errors: ([0-9]+),.*/\1/' <<<"$line")"
     skip="$(sed -E 's/.*Skipped: ([0-9]+).*/\1/' <<<"$line")"
-    echo "  $(basename "$f" .txt): run=$run failures=$fail errors=$err skipped=$skip"
+    echo "  $(basename "$f" .txt): run=$run failures=$nfail errors=$err skipped=$skip"
     if [ "$run" -eq 0 ] || [ "$skip" -ne 0 ]; then
-      echo "ERROR: exercise tests did not actually run" >&2; exit 1
+      fail "exercise tests did not actually run"
     fi
-    if [ "$mode" = unsolved ] && [ $((fail + err)) -eq 0 ]; then
-      echo "ERROR: $(basename "$f" .txt) passes without any solution" >&2; exit 1
+    if [ "$mode" = unsolved ] && [ $((nfail + err)) -eq 0 ]; then
+      fail "$(basename "$f" .txt) passes without any solution"
     fi
-    if [ "$mode" = solved ] && [ $((fail + err)) -ne 0 ]; then
-      echo "ERROR: $(basename "$f" .txt) fails even with the reference solution" >&2; exit 1
+    if [ "$mode" = solved ] && [ $((nfail + err)) -ne 0 ]; then
+      fail "$(basename "$f" .txt) fails even with the reference solution"
     fi
     count=$((count + 1))
   done
   if [ "$count" -lt 3 ]; then
-    echo "ERROR: expected at least 3 exercise test classes, found $count" >&2; exit 1
+    fail "expected at least 3 exercise test classes, found $count"
   fi
 }
 
