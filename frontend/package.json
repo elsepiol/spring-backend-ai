@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:exercises": "vitest run --config vitest.exercises.config.ts",
+    "test:exercises": "vitest run --mode exercises",
     "preview": "vite preview"
   },
   "dependencies": {

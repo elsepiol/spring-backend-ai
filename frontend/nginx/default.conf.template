@@ -1,5 +1,26 @@
 # Frontend level. One origin for the browser: the page AND the API come from here, so the browser
 # never makes a cross-origin request and no CORS is needed.
+
+# How the browser reached us. Spring (forward-headers-strategy=native) rebuilds the request URL from
+# X-Forwarded-Proto and X-Forwarded-Port, and compares it with the browser's Origin header on every
+# POST. Send only the protocol and Tomcat guesses port 80 (or 443): a page on :8081 then looks
+# cross-origin and gets 403. Behind a TLS Ingress, $scheme would say "http" for an https page.
+# So: keep what an outer proxy (the Ingress) already told us, else describe this connection.
+map $http_x_forwarded_proto $client_proto {
+    default $http_x_forwarded_proto;
+    ""      $scheme;
+}
+map $http_host $port_in_host {
+    "~:(?<port_from_host>[0-9]+)$" $port_from_host;
+    default                        "";
+}
+map "$http_x_forwarded_port|$port_in_host|$client_proto" $client_port {
+    "~^(?<fwd_port>[0-9]+)\|"     $fwd_port;   # the Ingress told us
+    "~^\|(?<host_port>[0-9]+)\|"  $host_port;  # the browser used an explicit port
+    "~\|https$"                   443;
+    default                       80;
+}
+
 server {
     listen 8080;
     server_tokens off;
@@ -15,7 +36,8 @@ server {
         # private addresses (server.forward-headers-strategy in application-prod.properties): the
         # rate limiter then counts the real client, not nginx.
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto $client_proto;
+        proxy_set_header X-Forwarded-Port $client_port;
     }
 
     # Built files have a content hash in their name (index-3f9a1c.js): a new build means a new

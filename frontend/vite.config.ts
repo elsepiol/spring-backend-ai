@@ -1,7 +1,7 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
   server: {
     port: 5173,
@@ -18,8 +18,9 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
-    include: ['src/**/*.test.{ts,tsx}'],
-    // Exercise tests fail until you do the exercise: run them with npm run test:exercises.
-    exclude: ['src/exercises/**', 'node_modules/**'],
+    // npm test: everything except the exercises, which fail until you do them.
+    // npm run test:exercises (vitest --mode exercises): ONLY the exercises.
+    include: mode === 'exercises' ? ['src/exercises/**/*.test.{ts,tsx}'] : ['src/**/*.test.{ts,tsx}'],
+    exclude: mode === 'exercises' ? ['node_modules/**'] : ['src/exercises/**', 'node_modules/**'],
   },
-});
+}));
