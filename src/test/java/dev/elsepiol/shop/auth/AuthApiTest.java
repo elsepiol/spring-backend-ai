@@ -116,7 +116,13 @@ class AuthApiTest extends PostgresIntegrationTest {
 				.andExpect(status().isUnauthorized())
 				.andReturn().getResponse().getContentAsString();
 
-		org.assertj.core.api.Assertions.assertThat(wrongPassword).isEqualTo(unknownEmail);
+		// Identical apart from per-request ids: a trace id (Level 6) differs between ANY two requests
+		// and tells an attacker nothing about the email.
+		org.assertj.core.api.Assertions.assertThat(withoutTraceId(wrongPassword)).isEqualTo(withoutTraceId(unknownEmail));
+	}
+
+	private static String withoutTraceId(String json) {
+		return json.replaceAll(",?\"traceId\":\"[0-9a-f]*\"", "");
 	}
 
 	@Test
