@@ -38,8 +38,8 @@ check_reports() {
     fi
     count=$((count + 1))
   done
-  if [ "$count" -lt 5 ]; then
-    fail "expected at least 5 exercise test classes, found $count"
+  if [ "$count" -lt 6 ]; then
+    fail "expected at least 6 exercise test classes, found $count"
   fi
 }
 

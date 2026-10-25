@@ -34,13 +34,14 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
  *
  *   - cached contexts stay alive for the whole run, so a background outbox poller in one of
  *     them would take events that a later test class expects to process itself;
- *   - many tests register and log in from the same address within seconds.
+ *   - many tests register, log in and place orders from one address and user within seconds.
  *
  * disabledWithoutDocker = true: if Docker is not running on the machine, these
  * tests are skipped instead of failing. CI always has Docker, so they always run there.
  */
 @Testcontainers(disabledWithoutDocker = true)
-@TestPropertySource(properties = { "app.outbox.worker.enabled=false", "app.rate-limit.auth.capacity=1000000" })
+@TestPropertySource(properties = { "app.outbox.worker.enabled=false", "app.rate-limit.auth.capacity=1000000",
+		"app.rate-limit.orders.capacity=1000000" })
 public abstract class PostgresIntegrationTest {
 
 	static final Network NETWORK = Network.newNetwork();
