@@ -32,6 +32,9 @@ public class SecurityConfig {
 						.requestMatchers("/error", "/actuator/health/**", "/actuator/info", "/api/v1/ping",
 								"/api/v1/greetings/**")
 						.permitAll()
+						// Metrics reveal traffic and internals: operators only.
+						.requestMatchers("/actuator/**")
+						.hasRole("ADMIN")
 						.requestMatchers(HttpMethod.POST, "/api/v1/auth/register", "/api/v1/auth/login")
 						.permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/v1/products", "/api/v1/products/**")

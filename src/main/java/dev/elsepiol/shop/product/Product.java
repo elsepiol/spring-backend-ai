@@ -6,6 +6,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.time.Instant;
 
 /**
@@ -34,6 +35,12 @@ public class Product {
 
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private Instant createdAt;
+
+	// Optimistic locking: every UPDATE is "... set version = v + 1 where id = ? and version = v".
+	// If another transaction changed the row first, 0 rows match and Hibernate throws instead
+	// of overwriting that change. The number also serves as the product's ETag.
+	@Version
+	private long version;
 
 	/** JPA needs a no-argument constructor to create objects when reading rows. */
 	protected Product() {
@@ -69,6 +76,17 @@ public class Product {
 
 	public Instant getCreatedAt() {
 		return createdAt;
+	}
+
+	public long getVersion() {
+		return version;
+	}
+
+	/** Replaces the fields a client may change. Hibernate notices and writes them at commit. */
+	public void update(String name, String description, long priceCents) {
+		this.name = name;
+		this.description = description;
+		this.priceCents = priceCents;
 	}
 
 }

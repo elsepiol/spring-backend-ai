@@ -9,15 +9,20 @@ import dev.elsepiol.shop.order.InvalidOrderException;
 import dev.elsepiol.shop.order.OrderNotCancellableException;
 import dev.elsepiol.shop.order.OrderNotFoundException;
 import dev.elsepiol.shop.product.DuplicateSkuException;
+import dev.elsepiol.shop.product.InvalidCursorException;
+import dev.elsepiol.shop.product.ProductChangedException;
 import dev.elsepiol.shop.product.ProductNotFoundException;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -115,6 +120,46 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
 		problem.setTitle("Conflict");
 		return problem;
+	}
+
+	@ExceptionHandler(InvalidCursorException.class)
+	ProblemDetail handleInvalidCursor(InvalidCursorException ex) {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+		problem.setTitle("Bad Request");
+		return problem;
+	}
+
+	/** If-Match did not match the current ETag: the client's copy is out of date. */
+	@ExceptionHandler(ProductChangedException.class)
+	ProblemDetail handleProductChanged(ProductChangedException ex) {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.PRECONDITION_FAILED, ex.getMessage());
+		problem.setTitle("Precondition Failed");
+		return problem;
+	}
+
+	/**
+	 * @Version caught two updates of the same row racing each other, and this one lost. Nothing
+	 * was written; the client can fetch the new state and try again.
+	 */
+	@ExceptionHandler(OptimisticLockingFailureException.class)
+	ProblemDetail handleOptimisticLock(OptimisticLockingFailureException ex) {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+				"The resource was changed by another request at the same time. Fetch it again and retry");
+		problem.setTitle("Conflict");
+		return problem;
+	}
+
+	/**
+	 * No database connection could be had in time: the pool is exhausted (spring.datasource.hikari
+	 * .connection-timeout) or the database is down. 503 + Retry-After tells clients and load
+	 * balancers "overloaded, back off and retry", which is true, instead of a generic 500.
+	 */
+	@ExceptionHandler({ CannotCreateTransactionException.class, DataAccessResourceFailureException.class })
+	ResponseEntity<ProblemDetail> handleDatabaseUnavailable(Exception ex) {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE,
+				"The service is busy. Please retry shortly");
+		problem.setTitle("Service Unavailable");
+		return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).header(HttpHeaders.RETRY_AFTER, "1").body(problem);
 	}
 
 	/** Failed @Valid on a request body: add which fields were wrong and why. */

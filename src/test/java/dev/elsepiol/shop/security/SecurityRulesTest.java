@@ -7,6 +7,7 @@ import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -80,7 +81,7 @@ class SecurityRulesTest {
 
 	@Test
 	void anAdminCanCreateProducts() throws Exception {
-		given(service.create(any())).willReturn(new ProductResponse(1L, "MUG-001", "Blue Mug", null, 1, Instant.now()));
+		given(service.create(any())).willReturn(new ProductResponse(1L, "MUG-001", "Blue Mug", null, 1, Instant.now(), 0));
 
 		mockMvc.perform(post("/api/v1/products").with(admin()).contentType(MediaType.APPLICATION_JSON).content(BODY))
 				.andExpect(status().isCreated());
@@ -90,6 +91,15 @@ class SecurityRulesTest {
 	void deletingIsAlsoAdminOnly() throws Exception {
 		mockMvc.perform(delete("/api/v1/products/1")).andExpect(status().isUnauthorized());
 		mockMvc.perform(delete("/api/v1/products/1").with(user())).andExpect(status().isForbidden());
+	}
+
+	@Test
+	void updatingIsAlsoAdminOnly() throws Exception {
+		String update = "{\"name\":\"Blue Mug\",\"priceCents\":1}";
+		mockMvc.perform(put("/api/v1/products/1").contentType(MediaType.APPLICATION_JSON).content(update))
+				.andExpect(status().isUnauthorized());
+		mockMvc.perform(put("/api/v1/products/1").with(user()).contentType(MediaType.APPLICATION_JSON).content(update))
+				.andExpect(status().isForbidden());
 	}
 
 	@Test

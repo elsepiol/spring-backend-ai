@@ -228,6 +228,30 @@ class OrderApiTest extends PostgresIntegrationTest {
 				.andExpect(jsonPath("$.items[1].id").value(ids[1]));
 	}
 
+	/**
+	 * THE WEAKNESS OF OFFSET PAGINATION (Level 4). "Page 1" means "skip the first 2 rows", so when
+	 * a new order arrives between two page requests, everything shifts down by one and the second
+	 * page starts with an order the client has already shown. This test PASSES by showing that
+	 * repeat. Keyset pagination ("the 2 orders older than #id") does not have it: Exercise 4.
+	 */
+	@Test
+	void offsetPagesShiftWhenANewOrderArrivesWhilePaging() throws Exception {
+		Account alice = api.newUser();
+		long mug = api.newProductWithStock(100, 50);
+		for (int i = 0; i < 4; i++) {
+			api.placeOrder(alice, ApiClient.newKey(), mug, 1).andExpect(status().isCreated());
+		}
+		String page0 = mvc.perform(get("/api/v1/orders").header("Authorization", alice.bearer())
+				.param("page", "0").param("size", "2"))
+				.andReturn().getResponse().getContentAsString();
+		Number lastShown = JsonPath.read(page0, "$.items[1].id");
+
+		api.placeOrder(alice, ApiClient.newKey(), mug, 1).andExpect(status().isCreated()); // arrives meanwhile
+
+		mvc.perform(get("/api/v1/orders").header("Authorization", alice.bearer()).param("page", "1").param("size", "2"))
+				.andExpect(jsonPath("$.items[0].id").value(lastShown.longValue())); // shown twice
+	}
+
 	@Test
 	void anOrderKeepsTheOldPriceWhenTheProductPriceChanges() throws Exception {
 		Account alice = api.newUser();
