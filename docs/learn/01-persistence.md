@@ -220,7 +220,7 @@ Done when the Level 1 exercise tests pass and `./mvnw verify` still passes.
 2. Should `delete` be `@Transactional`? What would go wrong without it if you did two things in it?
 3. What SQL does your search produce (use `show-sql`)? Will it use an index? Why or why not?
 
-**Stretch (parallel component, no tests):** add `PUT /api/v1/products/{id}` to update a product. Then add a `@Version` field to the entity (needs a V2 migration adding a `version` column) and find out what **optimistic locking** does when two users edit the same product at once. You will use this idea in Level 3.
+**Stretch (parallel component, no tests):** add `PUT /api/v1/products/{id}` to update a product. Then add a `@Version` field to the entity (needs a V2 migration adding a `version` column) and find out what **optimistic locking** does when two users edit the same product at once. You will use this idea in Level 3. (Level 4 builds both, with ETags on top: compare after you try.)
 
 Reference solution: the three files under `solutions/level-1/src/main/java/dev/elsepiol/shop/product/` (the repository, service and controller with the new methods added). Compare after you try.
 

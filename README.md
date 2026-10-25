@@ -18,7 +18,7 @@ Each level has:
 | 1 | [Persistence](docs/learn/01-persistence.md): PostgreSQL, JPA, Flyway migrations, layers, error handling, Testcontainers, Docker | Built (needs Docker to run the DB tests) |
 | 2 | [Security](docs/learn/02-security.md): bcrypt passwords, JWT login, role-based access, 401 vs 403, deny by default | Built (needs Docker for the DB tests) |
 | 3 | [Orders and concurrency](docs/learn/03-orders-and-concurrency.md): atomic stock updates, race conditions, deadlocks, idempotency keys, N+1 | Built (needs Docker for the DB tests) |
-| 4 | Thousands of requests per second: caching, indexes, pagination, connection pools | Planned |
+| 4 | [Thousands of requests per second](docs/learn/04-performance.md): caching, ETags, keyset pagination, indexes and EXPLAIN, connection pools, load testing | Built (needs Docker for the DB tests) |
 | 5 | Hundreds of thousands of users: queues and async work, rate limiting, read replicas | Planned |
 | 6 | Production: observability, deployment, when to split into services | Planned |
 | FE | Small React frontend: how the browser, API, tokens and CORS fit together | Planned |
@@ -32,6 +32,7 @@ Requires JDK 21. On Windows use `mvnw.cmd` instead of `./mvnw`.
 docker compose up -d db        # start PostgreSQL (Level 1 onward; needs Docker)
 ./mvnw spring-boot:run         # run the app on http://localhost:8080
 ./mvnw test -Pexercises        # run the exercise tests (they fail until you do the exercise)
+java scripts/LoadTest.java http://localhost:8080/api/v1/ping 50 15   # tiny load test (Level 4)
 ```
 
 Then open `docs/learn/00-orientation.md`.
