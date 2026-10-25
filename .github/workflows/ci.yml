@@ -73,9 +73,66 @@ jobs:
           # prod logs must be one JSON object per line (stdout only; the JVM may print notes on stderr)
           docker logs smoke-app 2>/dev/null | python3 -c "import sys, json; [json.loads(l) for l in sys.stdin if l.strip()]; print('logs are JSON')"
 
+      - name: Smoke test the frontend image in front of the API
+        # Frontend level: nginx serving the built app and passing /api to the backend container,
+        # exactly as in production. Checks the things that only break in a real deployment.
+        run: |
+          docker build -t shop-frontend:ci frontend
+          docker run -d --name smoke-web --network smoke -p 8081:8080 \
+            -e API_UPSTREAM=http://smoke-app:8080 shop-frontend:ci
+          for i in $(seq 1 30); do curl -sf localhost:8081/ >/dev/null && break; sleep 1; done
+          curl -sf localhost:8081/ | grep -q '<div id="root">'
+          # deep links get the app (single-page application fallback)
+          curl -sf localhost:8081/products/1 | grep -q '<div id="root">'
+          # security and cache headers
+          curl -sI localhost:8081/ | grep -qi '^content-security-policy:'
+          curl -sI localhost:8081/ | grep -qi '^cache-control: no-cache'
+          asset=$(curl -s localhost:8081/ | grep -oE '/assets/[^"]+\.js' | head -1)
+          curl -sI "localhost:8081$asset" | grep -qi 'immutable'
+          # the API through the proxy, including a browser-style POST carrying the page's Origin
+          curl -sf localhost:8081/api/v1/ping
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST localhost:8081/api/v1/auth/register \
+            -H 'Origin: http://localhost:8081' -H 'Content-Type: application/json' \
+            -d '{"email":"smoke@example.com","password":"correct horse battery"}')
+          test "$code" = 201
+          # actuator is NOT reachable through the public entry point
+          ! curl -s localhost:8081/actuator/prometheus | grep -q 'jvm_'
+          echo "frontend smoke test passed"
+
       - name: Show the app's output if the smoke test failed
         if: failure()
-        run: docker logs smoke-app 2>&1 | tail -100 || true
+        run: |
+          docker logs smoke-app 2>&1 | tail -100 || true
+          docker logs smoke-web 2>&1 | tail -50 || true
+
+  # Frontend level: type check, unit and component tests, production build.
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Install Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies (exactly as locked)
+        run: npm ci --no-audit --no-fund
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm test
+
+      - name: Production build
+        run: npm run build
 
   # Level 6: the Kubernetes manifests must be valid for the Kubernetes API, field by field.
   manifests:

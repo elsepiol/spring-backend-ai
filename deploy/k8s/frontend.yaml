@@ -1,0 +1,67 @@
+# Frontend level. nginx serving the built React app and passing /api to the "shop" Service.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shop-frontend
+  labels:
+    app: shop-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: shop-frontend
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: shop-frontend
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: nginx
+          image: ghcr.io/elsepiol/spring-backend-ai-frontend:REPLACE_WITH_COMMIT_SHA
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: API_UPSTREAM
+              value: "http://shop:80"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              memory: 64Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: shop-frontend
+  labels:
+    app: shop-frontend
+spec:
+  selector:
+    app: shop-frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
