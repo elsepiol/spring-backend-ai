@@ -21,7 +21,7 @@ Each level has:
 | 4 | [Thousands of requests per second](docs/learn/04-performance.md): caching, ETags, keyset pagination, indexes and EXPLAIN, connection pools, load testing | Built (needs Docker for the DB tests) |
 | 5 | [Hundreds of thousands of users](docs/learn/05-scaling-out.md): transactional outbox and background workers, rate limiting, read replicas and read-your-writes | Built (needs Docker for the DB tests) |
 | 6 | [Production](docs/learn/06-production.md): logs, metrics and traces, health probes, layered image and Kubernetes, zero-downtime deploys, modular monolith vs microservices | Built (needs Docker for the DB tests) |
-| FE | Small React frontend: how the browser, API, tokens and CORS fit together | Planned |
+| FE | [Frontend](docs/learn/07-frontend.md): React SPA on the same origin, CORS and proxies, tokens and CSP, idempotent checkout and retries, nginx image and Ingress | Built (needs Node 22) |
 
 ## Quick start
 
@@ -33,8 +33,10 @@ docker compose up -d db        # start PostgreSQL (Level 1 onward; needs Docker)
 ./mvnw spring-boot:run         # run the app on http://localhost:8080
 ./mvnw test -Pexercises        # run the exercise tests (they fail until you do the exercise)
 java scripts/LoadTest.java http://localhost:8080/api/v1/ping 50 15   # tiny load test (Level 4)
+cd frontend && npm ci && npm run dev    # the React app on http://localhost:5173 (needs Node 22)
+cd frontend && npm run test:exercises   # the frontend exercise tests
 ```
 
 Then open `docs/learn/00-orientation.md`.
 
-Each lesson's exercise has a reference solution under `solutions/level-N/`. CI proves every exercise fails without its solution and passes with it, so if one is broken CI says so.
+Each lesson's exercise has a reference solution under `solutions/level-N/` (`solutions/level-fe/` for the frontend). CI proves every exercise fails without its solution and passes with it, so if one is broken CI says so.

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Run by CI (needs Docker for the database exercises). Proves two things about every exercise:
+# Run by CI (needs Docker for the database exercises, Node for the frontend ones). Proves two
+# things about every exercise, backend and frontend:
 #   1. Without a solution at least one test fails, so the exercise is not already done.
 #   2. With the reference solutions from solutions/ every test passes, so it is solvable
 #      and later levels have not broken it.
@@ -13,7 +14,8 @@ trap 'code=$?; if [ "$code" -ne 0 ] && [ -d "$work/target/surefire-reports" ]; t
 
 fail() { echo "::error::$*"; echo "ERROR: $*" >&2; exit 1; }
 
-tar -C "$root" --exclude=./target --exclude=./.git -cf - . | tar -C "$work" -xf -
+tar -C "$root" --exclude=./target --exclude=./.git \
+  --exclude=./frontend/node_modules --exclude=./frontend/dist -cf - . | tar -C "$work" -xf -
 cd "$work"
 
 check_reports() {
@@ -43,20 +45,50 @@ check_reports() {
   fi
 }
 
+# Frontend exercises: vitest writes one JSON report; every exercise file must have run tests, and
+# (unsolved) at least one failure per file, or (solved) none at all.
+check_frontend() {
+  local mode="$1"
+  (cd frontend && npx vitest run --mode exercises --reporter=json --outputFile=exercises.json >/dev/null 2>&1) || true
+  [ -f frontend/exercises.json ] || fail "the frontend exercises did not run"
+  node -e '
+    const [mode, file] = process.argv.slice(1);
+    const report = JSON.parse(require("fs").readFileSync(file, "utf8"));
+    const files = report.testResults;
+    let bad = files.length < 2 ? `expected at least 2 frontend exercise files, found ${files.length}` : "";
+    for (const f of files) {
+      const name = f.name.split("/").pop();
+      const run = f.assertionResults.length;
+      const failed = f.assertionResults.filter((t) => t.status === "failed").length;
+      console.log(`  ${name}: run=${run} failures=${failed}`);
+      if (run === 0) bad ||= `${name}: the tests did not actually run`;
+      else if (mode === "unsolved" && failed === 0) bad ||= `${name} passes without any solution`;
+      else if (mode === "solved" && failed !== 0) bad ||= `${name} fails even with the reference solution`;
+    }
+    if (bad) { console.log("::error::" + bad); process.exit(1); }
+  ' "$mode" frontend/exercises.json || fail "frontend exercises: see above"
+  rm frontend/exercises.json
+}
+
 echo "== 1. Without solutions the exercises must fail"
 ./mvnw -B -q clean test -Pexercises || true
 check_reports unsolved
+(cd frontend && npm ci --no-audit --no-fund --loglevel=error)
+check_frontend unsolved
 
 echo "== 2. Applying the reference solutions"
+# Each overlay mirrors the repo layout (src/... for the backend, frontend/src/... for the frontend).
 for dir in solutions/level-*/; do
-  cp -r "$dir/src/." src/
+  cp -r "$dir/." ./
 done
 
 echo "== 3. With solutions every exercise test must pass"
 ./mvnw -B -q clean test -Pexercises
 check_reports solved
+check_frontend solved
 
-echo "== 4. The normal build must still pass with the solutions in place"
+echo "== 4. The normal builds must still pass with the solutions in place"
 ./mvnw -B verify
+(cd frontend && npm run typecheck && npm test && npm run build)
 
 echo "All exercises verified."
