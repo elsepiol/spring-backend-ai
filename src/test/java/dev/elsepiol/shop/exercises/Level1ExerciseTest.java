@@ -1,5 +1,6 @@
 package dev.elsepiol.shop.exercises;
 
+import static dev.elsepiol.shop.support.TestUsers.admin;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -35,7 +36,7 @@ class Level1ExerciseTest extends PostgresIntegrationTest {
 	private String create(String name) throws Exception {
 		String sku = "EX-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase();
 		String body = "{\"sku\":\"" + sku + "\",\"name\":\"" + name + "\",\"priceCents\":1000}";
-		return mockMvc.perform(post("/api/v1/products").contentType(MediaType.APPLICATION_JSON).content(body))
+		return mockMvc.perform(post("/api/v1/products").with(admin()).contentType(MediaType.APPLICATION_JSON).content(body))
 				.andExpect(status().isCreated())
 				.andReturn()
 				.getResponse()
@@ -52,13 +53,13 @@ class Level1ExerciseTest extends PostgresIntegrationTest {
 	void deleteRemovesTheProduct() throws Exception {
 		String location = create("To delete " + token());
 
-		mockMvc.perform(delete(location)).andExpect(status().isNoContent());
+		mockMvc.perform(delete(location).with(admin())).andExpect(status().isNoContent());
 		mockMvc.perform(get(location)).andExpect(status().isNotFound());
 	}
 
 	@Test
 	void deletingAnUnknownProductReturns404() throws Exception {
-		mockMvc.perform(delete("/api/v1/products/987654321")).andExpect(status().isNotFound());
+		mockMvc.perform(delete("/api/v1/products/987654321").with(admin())).andExpect(status().isNotFound());
 	}
 
 	// ---- Part B: GET /api/v1/products/search?q=...  (name contains q, ignoring case, paged) ----

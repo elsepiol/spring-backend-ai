@@ -157,6 +157,8 @@ docker compose up -d db                 # start PostgreSQL
 ./mvnw spring-boot:run                  # start the app (Windows: mvnw.cmd)
 ```
 
+> Note: this section is written for the Level 1 code. From Level 2 onward, creating products needs an admin token, so the `POST` commands below return 401 until you log in as an admin (see `02-security.md`, section 11). Reading products stays public.
+
 Create and read a product (PowerShell shown first, then curl):
 
 ```
@@ -218,7 +220,7 @@ Done when the Level 1 exercise tests pass and `./mvnw verify` still passes.
 
 **Stretch (parallel component, no tests):** add `PUT /api/v1/products/{id}` to update a product. Then add a `@Version` field to the entity (needs a V2 migration adding a `version` column) and find out what **optimistic locking** does when two users edit the same product at once. You will use this idea in Level 3.
 
-Reference solution: `solutions/level-1/solution.txt`. Compare after you try.
+Reference solution: the three files under `solutions/level-1/src/main/java/dev/elsepiol/shop/product/` (the repository, service and controller with the new methods added). Compare after you try.
 
 ---
 

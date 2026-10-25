@@ -1,5 +1,8 @@
 package dev.elsepiol.shop.error;
 
+import dev.elsepiol.shop.auth.DuplicateEmailException;
+import dev.elsepiol.shop.auth.InvalidCredentialsException;
+import dev.elsepiol.shop.auth.InvalidPasswordException;
 import dev.elsepiol.shop.product.DuplicateSkuException;
 import dev.elsepiol.shop.product.ProductNotFoundException;
 import java.util.LinkedHashMap;
@@ -28,6 +31,27 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 	ProblemDetail handleNotFound(ProductNotFoundException ex) {
 		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
 		problem.setTitle("Resource not found");
+		return problem;
+	}
+
+	@ExceptionHandler(DuplicateEmailException.class)
+	ProblemDetail handleDuplicateEmail(DuplicateEmailException ex) {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+		problem.setTitle("Conflict");
+		return problem;
+	}
+
+	@ExceptionHandler(InvalidCredentialsException.class)
+	ProblemDetail handleInvalidCredentials(InvalidCredentialsException ex) {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, ex.getMessage());
+		problem.setTitle("Unauthorized");
+		return problem;
+	}
+
+	@ExceptionHandler(InvalidPasswordException.class)
+	ProblemDetail handleInvalidPassword(InvalidPasswordException ex) {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+		problem.setTitle("Bad Request");
 		return problem;
 	}
 

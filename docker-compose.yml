@@ -28,6 +28,10 @@ services:
       DB_URL: jdbc:postgresql://db:5432/shop
       DB_USER: shop
       DB_PASSWORD: shop
+      # LOCAL DEVELOPMENT ONLY values, like the database password above.
+      JWT_SECRET: local-compose-only-secret-local-compose-only-secret
+      BOOTSTRAP_ADMIN_EMAIL: admin@example.com
+      BOOTSTRAP_ADMIN_PASSWORD: local-admin-password
     ports:
       - "8080:8080"
     depends_on:

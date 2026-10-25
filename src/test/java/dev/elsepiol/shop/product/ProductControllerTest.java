@@ -9,16 +9,21 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import static dev.elsepiol.shop.support.TestUsers.admin;
+
+import dev.elsepiol.shop.support.WebSliceSecurityConfig;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 /** Web layer only. The service is a mock, so no database is involved. */
 @WebMvcTest(ProductController.class)
+@Import(WebSliceSecurityConfig.class)
 class ProductControllerTest {
 
 	@Autowired
@@ -36,7 +41,7 @@ class ProductControllerTest {
 		given(service.create(any())).willReturn(
 				new ProductResponse(7L, "MUG-001", "Blue Mug", "A mug", 49900, Instant.parse("2026-01-01T00:00:00Z")));
 
-		mockMvc.perform(post("/api/v1/products").contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
+		mockMvc.perform(post("/api/v1/products").with(admin()).contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
 				.andExpect(status().isCreated())
 				.andExpect(header().string("Location", org.hamcrest.Matchers.endsWith("/api/v1/products/7")))
 				.andExpect(jsonPath("$.id").value(7))
@@ -49,7 +54,7 @@ class ProductControllerTest {
 				{"sku":"bad sku!","name":"","priceCents":-5}
 				""";
 
-		mockMvc.perform(post("/api/v1/products").contentType(MediaType.APPLICATION_JSON).content(invalid))
+		mockMvc.perform(post("/api/v1/products").with(admin()).contentType(MediaType.APPLICATION_JSON).content(invalid))
 				.andExpect(status().isBadRequest())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
 				.andExpect(jsonPath("$.errors.sku").exists())
@@ -61,7 +66,7 @@ class ProductControllerTest {
 	void createWithDuplicateSkuReturns409() throws Exception {
 		given(service.create(any())).willThrow(new DuplicateSkuException("MUG-001"));
 
-		mockMvc.perform(post("/api/v1/products").contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
+		mockMvc.perform(post("/api/v1/products").with(admin()).contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
 				.andExpect(status().isConflict())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
 				.andExpect(jsonPath("$.title").value("Conflict"));

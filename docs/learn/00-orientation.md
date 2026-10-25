@@ -40,7 +40,8 @@ There is no separate web server to install. Our build produces one runnable `.ja
 | `src/main/resources/application.properties` | Configuration | Settings that change without recompiling (app name, which actuator endpoints are exposed) |
 | `src/test/java/...` | Tests | Prove the code works; run on every build |
 | `src/test/java/.../exercises/` | Your exercise tests | Tagged `exercise`, skipped by the normal build |
-| `solutions/` | Reference solutions, stored as `.txt` | Peek only after you have tried (they are not compiled) |
+| `solutions/level-N/src/...` | Reference solutions as complete files, mirroring the real paths | Peek only after you have tried. They are not part of your build; CI applies them to a copy to prove each exercise is solvable |
+| `scripts/verify-exercises.sh` | CI check | Proves exercises fail before the solution and pass with it |
 | `.github/workflows/ci.yml` | Continuous integration config | Tells GitHub how to build and test every push |
 | `target/` | Generated build output (not in git) | Compiled classes, test reports, the final jar |
 | `.gitignore`, `.gitattributes` | Git housekeeping | Keep generated files out of git; keep line endings consistent |
@@ -229,7 +230,7 @@ Done when all 4 tests pass and `./mvnw verify` still passes.
 
 **Stretch (no tests, parallel components).** Make the same endpoint also accept `?name=` as a query parameter using `@RequestParam` with a default value. Then find out what `@RestControllerAdvice` and `ProblemDetail` do and change the 400 response to a structured JSON error body. You will need this in Level 1.
 
-If you are stuck after a real attempt, the reference is `solutions/level-0/GreetingController.java.txt`. Compare it with yours and note every difference.
+If you are stuck after a real attempt, the reference is `solutions/level-0/src/main/java/dev/elsepiol/shop/greeting/GreetingController.java`. Compare it with yours and note every difference.
 
 ---
 

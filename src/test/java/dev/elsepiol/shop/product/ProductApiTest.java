@@ -1,5 +1,6 @@
 package dev.elsepiol.shop.product;
 
+import static dev.elsepiol.shop.support.TestUsers.admin;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -26,7 +27,7 @@ class ProductApiTest extends PostgresIntegrationTest {
 
 	private void create(String sku, String name) throws Exception {
 		String body = "{\"sku\":\"" + sku + "\",\"name\":\"" + name + "\",\"priceCents\":1000}";
-		mockMvc.perform(post("/api/v1/products").contentType(MediaType.APPLICATION_JSON).content(body))
+		mockMvc.perform(post("/api/v1/products").with(admin()).contentType(MediaType.APPLICATION_JSON).content(body))
 				.andExpect(status().isCreated());
 	}
 
@@ -34,7 +35,7 @@ class ProductApiTest extends PostgresIntegrationTest {
 	void createThenFetchById() throws Exception {
 		String body = "{\"sku\":\"API-001\",\"name\":\"Kettle\",\"description\":\"1L\",\"priceCents\":259900}";
 
-		String location = mockMvc.perform(post("/api/v1/products").contentType(MediaType.APPLICATION_JSON).content(body))
+		String location = mockMvc.perform(post("/api/v1/products").with(admin()).contentType(MediaType.APPLICATION_JSON).content(body))
 				.andExpect(status().isCreated())
 				.andReturn()
 				.getResponse()
@@ -50,7 +51,7 @@ class ProductApiTest extends PostgresIntegrationTest {
 	void duplicateSkuReturns409() throws Exception {
 		create("API-DUP", "First");
 
-		mockMvc.perform(post("/api/v1/products").contentType(MediaType.APPLICATION_JSON)
+		mockMvc.perform(post("/api/v1/products").with(admin()).contentType(MediaType.APPLICATION_JSON)
 				.content("{\"sku\":\"API-DUP\",\"name\":\"Second\",\"priceCents\":1}"))
 				.andExpect(status().isConflict());
 	}
