@@ -25,28 +25,56 @@ import org.testcontainers.containers.wait.strategy.Wait;
  */
 public final class PostgresReplica {
 
+	/**
+	 * Runs inside the replica container AS the postgres user (no root, so no su-exec/gosu needed;
+	 * the image's tools for that have changed between versions). --checkpoint=fast: by default the
+	 * backup first waits for a spread-out checkpoint on the primary, which can take minutes.
+	 * Bounded retries: the primary may still be starting, but a permanent error must fail fast.
+	 */
 	private static final String SCRIPT = """
-			set -e
-			mkdir -p "$PGDATA" && chown postgres:postgres "$PGDATA" && chmod 700 "$PGDATA"
-			until su-exec postgres pg_basebackup -h primary -U "$PRIMARY_USER" -D "$PGDATA" -R -X stream; do sleep 1; done
-			exec su-exec postgres postgres
+			DIR=/var/lib/postgresql/replica
+			for attempt in $(seq 1 30); do
+			  if pg_basebackup -h primary -U "$PRIMARY_USER" -D "$DIR" -R -X stream --checkpoint=fast; then
+			    exec postgres -D "$DIR"
+			  fi
+			  rm -rf "$DIR"
+			  sleep 1
+			done
+			echo "pg_basebackup kept failing" >&2
+			exit 1
 			""";
+
+	/** Everything the replica container prints, for the error message if it does not start. */
+	private static final StringBuffer log = new StringBuffer();
+
+	private static RuntimeException startFailure;
 
 	private static final GenericContainer<?> replica = new GenericContainer<>("postgres:17-alpine")
 			.withNetwork(PostgresIntegrationTest.NETWORK)
 			.withEnv("PRIMARY_USER", PostgresIntegrationTest.postgres.getUsername())
 			.withEnv("PGPASSWORD", PostgresIntegrationTest.postgres.getPassword())
 			.withExposedPorts(5432)
+			.withCreateContainerCmdModifier(cmd -> cmd.withUser("postgres"))
 			.withCommand("sh", "-c", SCRIPT)
+			.withLogConsumer(frame -> log.append(frame.getUtf8String()))
 			.waitingFor(Wait.forLogMessage(".*ready to accept read-only connections.*", 1)
-					.withStartupTimeout(Duration.ofMinutes(2)));
+					.withStartupTimeout(Duration.ofSeconds(90)));
 
 	private PostgresReplica() {
 	}
 
 	public static synchronized String jdbcUrl() {
+		if (startFailure != null) {
+			throw startFailure; // tried once already: do not wait for the timeout again on every call
+		}
 		if (!replica.isRunning()) {
-			replica.start();
+			try {
+				replica.start();
+			}
+			catch (RuntimeException ex) {
+				startFailure = new IllegalStateException("The replica did not start. Its output:\n" + log, ex);
+				throw startFailure;
+			}
 		}
 		return "jdbc:postgresql://" + replica.getHost() + ":" + replica.getMappedPort(5432) + "/"
 				+ PostgresIntegrationTest.postgres.getDatabaseName();

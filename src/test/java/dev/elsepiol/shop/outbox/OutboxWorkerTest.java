@@ -204,6 +204,8 @@ class OutboxWorkerTest extends PostgresIntegrationTest {
 		drain();
 
 		assertThat(notificationsOf(userId)).hasSize(1);
+		assertThat(jdbc.queryForObject("select status from outbox_events where type = ? and aggregate_id = ?",
+				String.class, OrderEvent.PLACED, placed.order().id())).as("handled again WITHOUT an error").isEqualTo("DONE");
 	}
 
 	@Test
