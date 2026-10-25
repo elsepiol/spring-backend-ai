@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import dev.elsepiol.shop.auth.AuthService;
 import dev.elsepiol.shop.inventory.InventoryService;
+import dev.elsepiol.shop.notification.NotificationService;
 import dev.elsepiol.shop.order.OrderService;
 import dev.elsepiol.shop.product.ProductService;
 import dev.elsepiol.shop.support.WebSliceSecurityConfig;
@@ -34,7 +35,7 @@ class Level0GreetingExerciseTest {
 	@Autowired
 	private MockMvc mockMvc;
 
-	// @WebMvcTest loads every controller. The product, auth, inventory and order controllers need services,
+	// @WebMvcTest loads every controller. The product, auth, inventory, order and notification controllers need services,
 	// which this web-only test does not start, so we provide stand-ins. Ignore them.
 	@MockitoBean
 	private ProductService productService;
@@ -47,6 +48,9 @@ class Level0GreetingExerciseTest {
 
 	@MockitoBean
 	private OrderService orderService;
+
+	@MockitoBean
+	private NotificationService notificationService;
 
 	@Test
 	void greetsAValidName() throws Exception {

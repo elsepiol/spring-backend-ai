@@ -54,9 +54,13 @@ public class ProductService {
 	 *
 	 * A missing product throws, and exceptions are never cached, so a product created later
 	 * is found at once.
+	 *
+	 * Why the miss reads the PRIMARY (Level 5): an update evicts the entry; if the next miss read
+	 * a replica that has not replayed the update yet, it would put the OLD product back into the
+	 * cache, where it would then stay for the full 10 minutes.
 	 */
 	@Cacheable(cacheNames = CACHE, key = "#id", sync = true)
-	@Transactional(readOnly = true)
+	@Transactional // not read-only (Level 5): fill the cache from the primary, never from a lagging replica
 	public ProductResponse getById(long id) {
 		return repository.findById(id).map(ProductResponse::from).orElseThrow(() -> new ProductNotFoundException(id));
 	}

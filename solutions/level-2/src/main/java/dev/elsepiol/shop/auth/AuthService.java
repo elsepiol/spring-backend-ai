@@ -55,7 +55,10 @@ public class AuthService {
 		}
 	}
 
-	@Transactional(readOnly = true)
+	// Not read-only (Level 5): read-only work may go to a read replica, which lags behind. Someone
+	// who registered a second ago must be able to log in, and after a password change the OLD
+	// password must stop working at once, not when the replica catches up.
+	@Transactional
 	public TokenResponse login(LoginRequest request) {
 		User user = users.findByEmail(normalize(request.email())).orElse(null);
 

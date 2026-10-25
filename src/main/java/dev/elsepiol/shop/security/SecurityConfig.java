@@ -1,5 +1,7 @@
 package dev.elsepiol.shop.security;
 
+import dev.elsepiol.shop.ratelimit.RateLimitFilter;
+import dev.elsepiol.shop.ratelimit.RateLimitRules;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -8,6 +10,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
 
 /**
  * Who may call what. Rules are checked top to bottom and the FIRST match wins,
@@ -19,7 +22,7 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
 	@Bean
-	SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+	SecurityFilterChain securityFilterChain(HttpSecurity http, RateLimitRules rateLimits) throws Exception {
 		SecurityProblemHandlers problemHandlers = new SecurityProblemHandlers();
 
 		http
@@ -47,7 +50,10 @@ public class SecurityConfig {
 				.oauth2ResourceServer(oauth -> oauth
 						.authenticationEntryPoint(problemHandlers)
 						.accessDeniedHandler(problemHandlers)
-						.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())));
+						.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
+				// Level 5: rate limits run after authorization, so the caller is known and refused
+				// requests do not use up anyone's quota.
+				.addFilterAfter(new RateLimitFilter(rateLimits), AuthorizationFilter.class);
 
 		return http.build();
 	}

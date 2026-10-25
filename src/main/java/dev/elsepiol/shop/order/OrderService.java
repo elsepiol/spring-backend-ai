@@ -2,6 +2,7 @@ package dev.elsepiol.shop.order;
 
 import dev.elsepiol.shop.inventory.InsufficientStockException;
 import dev.elsepiol.shop.inventory.InventoryRepository;
+import dev.elsepiol.shop.outbox.Outbox;
 import dev.elsepiol.shop.product.Product;
 import dev.elsepiol.shop.product.ProductRepository;
 import java.nio.charset.StandardCharsets;
@@ -23,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The heart of Level 3. Read the comments in place(): every line there exists because of a
@@ -34,21 +36,27 @@ public class OrderService {
 	private final CustomerOrderRepository orders;
 	private final ProductRepository products;
 	private final InventoryRepository inventory;
+	private final Outbox outbox;
+	private final JsonMapper json;
 	private final TransactionTemplate writeTx;
-	private final TransactionTemplate readTx;
+	private final TransactionTemplate lookupTx;
 
 	public OrderService(CustomerOrderRepository orders, ProductRepository products, InventoryRepository inventory,
-			PlatformTransactionManager transactionManager) {
+			Outbox outbox, JsonMapper json, PlatformTransactionManager transactionManager) {
 		this.orders = orders;
 		this.products = products;
 		this.inventory = inventory;
+		this.outbox = outbox;
+		this.json = json;
 		// We open transactions by hand here (instead of @Transactional) because place() must
 		// catch an exception AFTER its transaction has rolled back and then look again.
 		// @Transactional wraps the whole method, so the catch would run inside the doomed
 		// transaction, and in PostgreSQL a failed statement poisons the rest of that transaction.
 		this.writeTx = new TransactionTemplate(transactionManager);
-		this.readTx = new TransactionTemplate(transactionManager);
-		this.readTx.setReadOnly(true);
+		// Deliberately NOT read-only (Level 5): read-only transactions may be sent to a read replica,
+		// which can lag behind. "Was this key already used?" must see the latest committed data, or a
+		// retry could miss the original order and fail on the UNIQUE constraint a second time.
+		this.lookupTx = new TransactionTemplate(transactionManager);
 	}
 
 	public PlacedOrder place(long userId, String rawKey, CreateOrderRequest request) {
@@ -118,11 +126,15 @@ public class OrderService {
 				throw new InsufficientStockException(line.getKey());
 			}
 		}
+
+		// Level 5: "send the confirmation" is not done here. It is recorded in the same transaction
+		// and done in the background (see Outbox), so it happens if and only if this order commits.
+		outbox.add(OrderEvent.PLACED, order.getId(), json.writeValueAsString(new OrderEvent(order.getId(), userId, total)));
 		return OrderResponse.from(order);
 	}
 
 	private Optional<PlacedOrder> findEarlier(long userId, String key, String hash) {
-		return Optional.ofNullable(readTx.execute(status -> orders.findByUserIdAndIdempotencyKey(userId, key)
+		return Optional.ofNullable(lookupTx.execute(status -> orders.findByUserIdAndIdempotencyKey(userId, key)
 				.map(existing -> {
 					if (!existing.getRequestHash().equals(hash)) {
 						throw new IdempotencyKeyReuseException();
@@ -132,12 +144,14 @@ public class OrderService {
 				.orElse(null)));
 	}
 
-	@Transactional(readOnly = true)
+	// Not read-only (Level 5): a customer who just placed an order and opens it must see it, so
+	// their own orders are always read from the primary database, never from a lagging replica.
+	@Transactional
 	public OrderResponse get(long id, CurrentUser caller) {
 		return OrderResponse.from(visibleOrder(id, caller));
 	}
 
-	@Transactional(readOnly = true)
+	@Transactional // the caller's own, just-written data: primary (see get)
 	public Page<OrderResponse> listMine(long userId, Pageable pageable) {
 		// Mapping touches each order's lazy items. hibernate.default_batch_fetch_size (see
 		// application.properties) loads them for a whole page in ONE query instead of one query
@@ -161,6 +175,8 @@ public class OrderService {
 				.sorted(Comparator.comparingLong(OrderItem::getProductId))
 				.forEach(item -> inventory.increment(item.getProductId(), item.getQuantity()));
 
+		outbox.add(OrderEvent.CANCELLED, id,
+				json.writeValueAsString(new OrderEvent(id, order.getUserId(), order.getTotalCents())));
 		return OrderResponse.from(orders.findById(id).orElseThrow());
 	}
 

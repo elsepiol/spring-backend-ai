@@ -1,5 +1,6 @@
 package dev.elsepiol.shop.support;
 
+import dev.elsepiol.shop.ratelimit.RateLimitRules;
 import dev.elsepiol.shop.security.SecurityConfig;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
@@ -14,6 +15,8 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
  * and replace the token decoder with one that accepts no real tokens: tests that
  * need a logged-in user use SecurityMockMvcRequestPostProcessors.jwt() instead.
  *
+ * SecurityConfig also needs the rate limit rules (Level 5); slices get none.
+ *
  * Use it with: @Import(WebSliceSecurityConfig.class)
  */
 @TestConfiguration
@@ -25,6 +28,11 @@ public class WebSliceSecurityConfig {
 		return token -> {
 			throw new BadJwtException("Real tokens are not accepted in web slice tests");
 		};
+	}
+
+	@Bean
+	RateLimitRules rateLimitRules() {
+		return RateLimitRules.none();
 	}
 
 }
