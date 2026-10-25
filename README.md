@@ -17,7 +17,7 @@ Each level has:
 | 0 | [Orientation](docs/learn/00-orientation.md): build tool, build agent, project layout, how Spring starts, one request end to end | Done |
 | 1 | [Persistence](docs/learn/01-persistence.md): PostgreSQL, JPA, Flyway migrations, layers, error handling, Testcontainers, Docker | Built (needs Docker to run the DB tests) |
 | 2 | [Security](docs/learn/02-security.md): bcrypt passwords, JWT login, role-based access, 401 vs 403, deny by default | Built (needs Docker for the DB tests) |
-| 3 | Correctness under concurrency: orders, stock, transactions, idempotency | Planned |
+| 3 | [Orders and concurrency](docs/learn/03-orders-and-concurrency.md): atomic stock updates, race conditions, deadlocks, idempotency keys, N+1 | Built (needs Docker for the DB tests) |
 | 4 | Thousands of requests per second: caching, indexes, pagination, connection pools | Planned |
 | 5 | Hundreds of thousands of users: queues and async work, rate limiting, read replicas | Planned |
 | 6 | Production: observability, deployment, when to split into services | Planned |
